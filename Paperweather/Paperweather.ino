@@ -6,6 +6,8 @@
 #include "M5EPD.h"
 #include "parson.h"
 
+bool DEBUG = true;
+
 M5EPD_Canvas canvas1(&M5.EPD);
 HTTPClient client;
 JSON_Value *json_root = NULL;
@@ -26,8 +28,8 @@ String timeString;
 #define YMID YRES / 2
 
 const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 0;
-const int   daylightOffset_sec = 3600;
+const long  gmtOffset_sec = timezoneHours*60*60;
+const int   daylightOffset_sec = 0; //FIXME: Should indicate daylight savings time...
 
 void enterDeepSleep(int seconds)
 {
@@ -61,7 +63,7 @@ void wifi_connect_and_fetch_data()
       
       //Restart the wifi connect attempt..
       //FIXME: This still isn't great. We should probably check for an error status on the wifi connect attempt (assuming such a result is supplied by the Wifi API)
-      Serial.println("Re-trying wifi connection: " + String(wifi_attempt_count));
+      if(DEBUG) Serial.println("Re-trying wifi connection: " + String(wifi_attempt_count));
       WiFi.begin(ssid, pass);    
 
       if (wifi_attempt_count >= 30)
@@ -95,13 +97,13 @@ void wifi_connect_and_fetch_data()
   int httpResponseCode = client.GET();
   String noaabuffer = "{}"; 
   if (httpResponseCode>0) {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
+    if(DEBUG) Serial.print("HTTP Response code: ");
+    if(DEBUG) Serial.println(httpResponseCode);
     noaabuffer = client.getString();
   }
   else {
-    Serial.print("Error code: ");
-    Serial.println(httpResponseCode);
+    if(DEBUG) Serial.print("Error code: ");
+    if(DEBUG) Serial.println(httpResponseCode);
   }
 
   // Parse XML
@@ -118,8 +120,6 @@ void getNtpTime()
     return;
   }
 
-  //FIXME: This doesn't work all the time
-  timeinfo.tm_hour += timezoneHours;
 
   char buf[40];  
   strftime(buf, 40, "%m/%d/%y %H:%M", &timeinfo);
@@ -244,8 +244,8 @@ void draw_forecast() {
       descTextSize = 18;
     }
     sprintf(buf2, "%s", perioddesc);
-    Serial.println(buf);
-    Serial.println(buf2);
+    if(DEBUG) Serial.println(buf);
+    if(DEBUG) Serial.println(buf2);
     addText(buf, XMID, 460 + (i*87), 30);
     addText(buf2, XMID, 460 + (i*87)+30, descTextSize);
   }
@@ -301,19 +301,18 @@ void setup()
 void loop()
 {
   draw();
-  // enterDeepSleep(refreshintervalseconds);
+  delay(1000); // screen refresh time before we go to sleep..
   // delay(1000*refreshintervalseconds);
-  delay(1000);
   esp_sleep_enable_timer_wakeup(refreshintervalseconds * 1E6);
   esp_deep_sleep_start();
   // M5.RTC.clearIRQ();
   // int realseconds;
   // realseconds = M5.RTC.setAlarmIRQ(refreshintervalseconds);
-  // Serial.println("Alarm IRQ set for " + String(float((float)realseconds / 60.00)) + " minutes");
+  // if(DEBUG) Serial.println("Alarm IRQ set for " + String(float((float)realseconds / 60.00)) + " minutes");
   // for(int i = 0; i < 10; i++)
   // {
   //   delay(1000);
-  //   Serial.println("Current count: " + String(M5.RTC.readReg(0xF)));
+    // Serial.println("Current count: " + String(M5.RTC.readReg(0xF)));
 
   // }
   // M5.shutdown();
