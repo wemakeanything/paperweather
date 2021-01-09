@@ -29,6 +29,12 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 
+void enterDeepSleep(int seconds)
+{
+  esp_sleep_enable_timer_wakeup(seconds * 1E6);
+  esp_deep_sleep_start();
+}
+
 void addText(String text, int x, int y, int size)
 {
   canvas1.setTextDatum(BL_DATUM);
@@ -66,7 +72,7 @@ void wifi_connect_and_fetch_data()
         addText(String("Failed to connect to wifi"), XMID, YMID - 30);
         canvas1.pushCanvas(0, 0, UPDATE_MODE_GC16);
 
-        delay(1000 * refreshintervalseconds);
+        enterDeepSleep(refreshintervalseconds);
         wifi_attempt_count = -1;
         M5.EPD.Clear(true);
         
@@ -111,7 +117,10 @@ void getNtpTime()
     timeString = "UnknownTime";    
     return;
   }
-  timeinfo.tm_hour -= 5;
+
+  //FIXME: This doesn't work all the time
+  timeinfo.tm_hour += timezoneHours;
+
   char buf[40];  
   strftime(buf, 40, "%m/%d/%y %H:%M", &timeinfo);
   timeString = String(buf);
@@ -136,6 +145,7 @@ void draw_lastUpdated()
 void draw_batteryleft()
 {
   char buf[20];
+  M5.SHT30.UpdateData();
   uint32_t vol = M5.getBatteryVoltage();
   float battery = (float)(vol - 3300) / (float)(4350 - 3300);
   if(battery <= 0.01)
@@ -218,20 +228,26 @@ void draw_forecast() {
   const JSON_Array *pname = json_object_dotget_array(json_value_get_object(json_root), "time.startPeriodName");
   const JSON_Array *temps = json_object_dotget_array(json_value_get_object(json_root), "data.temperature");
   const JSON_Array *desc_short= json_object_dotget_array(json_value_get_object(json_root), "data.weather");
-  const JSON_Array *desc_long= json_object_dotget_array(json_value_get_object(json_root), "data.text");
 
-  char buf[300];
-  char buf2[50];
   int i;
+  int descTextSize;
   for (i = 0; i < json_array_get_count(pname) && i < 5; i++) {
+    char buf[100];
+    char buf2[500];
+    descTextSize = 25;
     const char *periodtime = json_array_get_string(pname, i);
     const char *perioddesc = json_array_get_string(desc_short, i);
-    const char *highTemp = json_array_get_string(temps, (2*i)+1);
-    const char *lowTemp = json_array_get_string(temps, (2*i));
-    sprintf(buf, "%s: %s / %s °F", periodtime, highTemp, lowTemp);
+    const char *temp = json_array_get_string(temps, i);
+    sprintf(buf, "%s: %s °F", periodtime, temp);
+    if (strlen(perioddesc) > 32) //Text will run off the screen. Shrink it; FIXME: Split over multiple lines instead?
+    {
+      descTextSize = 18;
+    }
     sprintf(buf2, "%s", perioddesc);
-    addText(buf, XMID, 460 + (i*87), 30);    
-    addText(buf2, XMID, 460 + (i*87)+30, 25);
+    Serial.println(buf);
+    Serial.println(buf2);
+    addText(buf, XMID, 460 + (i*87), 30);
+    addText(buf2, XMID, 460 + (i*87)+30, descTextSize);
   }
 }
 
@@ -273,7 +289,7 @@ void draw()
 
 void setup()
 {
-  M5.begin();
+  M5.begin(true, true, true, true, true);
   M5.TP.SetRotation(90);
   M5.EPD.SetRotation(90);
   M5.SHT30.Begin();
@@ -285,5 +301,21 @@ void setup()
 void loop()
 {
   draw();
-  delay(1000 * refreshintervalseconds);
+  // enterDeepSleep(refreshintervalseconds);
+  // delay(1000*refreshintervalseconds);
+  delay(1000);
+  esp_sleep_enable_timer_wakeup(refreshintervalseconds * 1E6);
+  esp_deep_sleep_start();
+  // M5.RTC.clearIRQ();
+  // int realseconds;
+  // realseconds = M5.RTC.setAlarmIRQ(refreshintervalseconds);
+  // Serial.println("Alarm IRQ set for " + String(float((float)realseconds / 60.00)) + " minutes");
+  // for(int i = 0; i < 10; i++)
+  // {
+  //   delay(1000);
+  //   Serial.println("Current count: " + String(M5.RTC.readReg(0xF)));
+
+  // }
+  // M5.shutdown();
 }
+ 

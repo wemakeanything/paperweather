@@ -6,4 +6,6 @@ static const char pass[] = "networkpassword";
 static const char weatherurl[] = "https://forecast.weather.gov/MapClick.php?lat=32.71533&lon=-117.15726&unit=0&lg=english&FcstType=json";
 
 // E.g. refresh once an hour
-static const int refreshintervalseconds = 60 * 60;
+static const int refreshintervalseconds = 10 * 60;
+
+static const int timezoneHours = -5; //EST
