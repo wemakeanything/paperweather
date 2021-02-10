@@ -303,8 +303,8 @@ void loop()
   draw();
   delay(1000); // screen refresh time before we go to sleep..
   // delay(1000*refreshintervalseconds);
-  esp_sleep_enable_timer_wakeup(refreshintervalseconds * 1E6);
-  esp_deep_sleep_start();
+  //esp_sleep_enable_timer_wakeup(refreshintervalseconds * 1E6);
+  //esp_deep_sleep_start();
   // M5.RTC.clearIRQ();
   // int realseconds;
   // realseconds = M5.RTC.setAlarmIRQ(refreshintervalseconds);
@@ -315,6 +315,6 @@ void loop()
     // Serial.println("Current count: " + String(M5.RTC.readReg(0xF)));
 
   // }
-  // M5.shutdown();
+  M5.shutdown(refreshintervalseconds);
 }
  
